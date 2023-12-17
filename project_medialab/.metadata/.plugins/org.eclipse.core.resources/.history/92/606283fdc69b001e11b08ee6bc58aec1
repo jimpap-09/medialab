@@ -1,0 +1,188 @@
+package application;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Comparator;
+import java.util.List;
+
+import application.Book.Comment;
+import application.Book.Rating;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+public class BookUtils {
+
+	// Get the Books path/file
+	private static Path getBooksPath() {
+		return Paths.get("medialab", "Books");
+	}
+
+	private static File getBooksFile() {
+		return getBooksPath().toFile();
+	}
+
+	// Get a list of all books
+	public static ObservableList<Book> getBooks() throws FileNotFoundException, IOException, ClassNotFoundException {
+    	ObservableList<Book> getBooks = FXCollections.observableArrayList();
+    	File books = getBooksFile();
+    	File[] bookFiles = books.listFiles();
+		for (File bookFile : bookFiles)
+			try(ObjectInputStream in = new ObjectInputStream(new FileInputStream(bookFile))) {
+				getBooks.add((Book)in.readObject());
+			}
+    	return getBooks;
+    }
+
+	// Delete all books
+	public static void deleteBooks() throws FileNotFoundException, IOException, ClassNotFoundException {
+    	ObservableList<Book> books = getBooks();
+    	for(Book book : books)
+			book.delete();
+	}
+
+	// Get a list of all books of a given category
+	public static ObservableList<Book> getBooksOfSameCategory(Category category) throws FileNotFoundException, IOException, ClassNotFoundException {
+    	ObservableList<Book> books = BookUtils.getBooks();
+    	ObservableList<Book> getBooks = FXCollections.observableArrayList();
+    			for (Book book : books)
+					if(book.getCategory().equals(category.getTitle()))
+						getBooks.add(book);
+    	return getBooks;
+    }
+
+	// Delete all books of a given category
+	public static void deleteBooksOfSameCategory(Category category) throws FileNotFoundException, IOException, ClassNotFoundException {
+    	ObservableList<Book> books = getBooks();
+    	for(Book book : books)
+    		if(book.getCategory().equals(category.getTitle())) {
+    			book.delete();
+    			LendingUtils.deleteLendingsOfSameBook(book);
+    		}
+    }
+	
+	// Update all books of same Category
+    public static void updateBooksOfSameCategory(Category oldCategory, Category newCategory) throws FileNotFoundException, ClassNotFoundException, IOException {
+    	ObservableList<Book> books = getBooksOfSameCategory(oldCategory);
+    	for(Book book : books)
+    		book.setCategory(newCategory.getTitle());
+    }
+
+	// Get a list of all lended books by a given user
+	public static ObservableList<Book> getLendedBooks(User user) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Book> getBooks = FXCollections.observableArrayList();
+    	ObservableList<Book> books = getBooks();
+    	ObservableList<Lending> lendings = LendingUtils.getLendings();
+    	for(Book book : books)
+    		for(Lending lending : lendings)
+    			if(lending.getLendingBook().getISBN().equals(book.getISBN()) && lending.getLendingUser().getADT().equals(user.getADT()))
+					getBooks.add(book);
+    	return getBooks;
+	}
+
+	// Get a list of all nonlended books by a given user
+	public static ObservableList<Book> getNotLendedBooks(User user) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Book> getBooks = FXCollections.observableArrayList();
+    	ObservableList<Book> books = getBooks();
+    	ObservableList<Lending> lendings = LendingUtils.getLendings();
+			for (Book book : books) {
+				boolean isLended = false;
+				for(Lending lending : lendings)
+					if(lending.getLendingBook().getISBN().equals(book.getISBN()) && lending.getLendingUser().getADT().equals(user.getADT()))
+    					isLended = true;
+				if(!isLended)
+					getBooks.add(book);
+			}
+    	return getBooks;
+	}
+
+	// Get a list of books with the given triplet (title, author, year of publishing)
+	public static ObservableList<Book> getBooksOfSameTitleAuthorYop(String title, String author, String yop) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Book> getBooks = FXCollections.observableArrayList();
+    	ObservableList<Book> books = getBooks();
+    	for(Book book : books) {
+    		boolean checkTitle = title.isEmpty() || book.getTitle().equals(title);
+            boolean checkAuthor = author.isEmpty() || book.getAuthor().equals(author);
+            boolean checkYop = yop.isEmpty() || book.getYop().equals(yop);
+            if (checkTitle && checkAuthor && checkYop)
+                getBooks.add(book);
+    	}
+        return getBooks;
+	}
+
+	// Get a list of lended books by a given user with the given triplet (title, author, year of publishing)
+	public static ObservableList<Book> getLendedBooksOfSameTitleAuthorYop(User user, String title, String author, String yop) throws FileNotFoundException, ClassNotFoundException, IOException {
+		ObservableList<Book> lendedBooks = BookUtils.getLendedBooks(user);
+	    ObservableList<Book> booksOfSameTitleAuthorYop = BookUtils.getBooksOfSameTitleAuthorYop(title, author, yop);
+	    if (booksOfSameTitleAuthorYop != null && lendedBooks != null) {
+	        ObservableList<Book> commonBooks = FXCollections.observableArrayList();
+	        for (Book book : booksOfSameTitleAuthorYop)
+	            for(Book b : lendedBooks)
+	            	if (book.getISBN().equals(b.getISBN()))
+		                commonBooks.add(book);
+	        return commonBooks;
+	    }
+	    else return null;
+	}
+
+	// Get a list of nonlended books by a given user with the given triplet (title, author, year of publishing)
+	public static ObservableList<Book> getNotLendedBooksOfSameTitleAuthorYop(User user, String title, String author, String yop) throws FileNotFoundException, ClassNotFoundException, IOException {
+		ObservableList<Book> notLendedBooks = BookUtils.getNotLendedBooks(user);
+	    ObservableList<Book> booksOfSameTitleAuthorYop = BookUtils.getBooksOfSameTitleAuthorYop(title, author, yop);
+	    if (booksOfSameTitleAuthorYop != null && notLendedBooks != null) {
+	        ObservableList<Book> commonBooks = FXCollections.observableArrayList();
+	        for (Book book : booksOfSameTitleAuthorYop)
+	            for(Book b : notLendedBooks)
+	            	if (book.getISBN().equals(b.getISBN()))
+		                commonBooks.add(book);
+	        return commonBooks;
+	    }
+	    else return null;
+	}
+
+    // Get book's rating by a given user
+    public static Rating getBookRatingByUser(Book book, User user) {
+    	List<Rating> ratings = book.getRatings();
+    	for(Rating rating : ratings)
+    		if(rating.getRatingID().equals(user.getADT()))
+    			return rating;
+    	return null;
+    }
+
+    // Get book's comment by a given user
+    public static Comment getBookCommentByUser(Book book, User user) {
+    	List<Comment> comments = book.getComments();
+    	for(Comment comment : comments)
+    		if(comment.getCommentID().equals(user.getADT()))
+    			return comment;
+    	return null;
+    }
+    
+    // Get 5 most high rated books
+    public static ObservableList<Book> get5HighRatedBooks() throws FileNotFoundException, ClassNotFoundException, IOException {
+		ObservableList<Book> getBooks = FXCollections.observableArrayList();
+		List<Book> books = getBooks();
+		books.sort(Comparator.comparingDouble(book -> Double.parseDouble(((Book) book).getAvgRating())).reversed().thenComparingInt(book -> Integer.parseInt(((Book) book).getISBN())));
+		int i = 0;
+		for(Book book : books)
+			if(i < 5) {
+				getBooks.add(book);
+				i++;
+			}
+			else break;
+		return getBooks;
+    }
+    
+	// Check if the book with the given title or ISBN already exists
+    public static boolean bookTitleOrISBNExists(String title, String isbn) throws FileNotFoundException, IOException, ClassNotFoundException {
+    	ObservableList<Book> books = BookUtils.getBooks();
+			for (Book book : books)
+				if(book.getTitle().equals(title) || book.getISBN().equals(isbn))
+					return true;
+    	return false;
+    }
+}

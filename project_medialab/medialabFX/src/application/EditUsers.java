@@ -1,0 +1,155 @@
+package application;
+
+import static javafx.geometry.HPos.CENTER;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
+public class EditUsers {
+
+	EditUsers(User user, Stage primaryStage, Admin admin) throws FileNotFoundException, ClassNotFoundException, IOException {
+
+    	GridPane grid = new GridPane();
+        grid.setAlignment(Pos.CENTER);
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(25, 25, 25, 25));
+
+        Text scenetitle = new Text("Let's Edit User" + user.getADT() + " !");
+        scenetitle.setFont(Font.font("Tahoma", FontWeight.NORMAL, 20));
+        grid.add(scenetitle, 0, 0, 2, 1);
+
+        // Create TextFields for each property
+        TextField userNameField = new TextField(user.getUserName());
+        TextField passwordField = new TextField(user.getPassword());
+        TextField firstNameField = new TextField(user.getFirstName());
+        TextField lastNameField = new TextField(user.getLastName());
+        TextField emailField = new TextField(user.getEmail());
+        TextField adtField = new TextField(user.getADT());
+        
+        // Add Labels and TextFields
+        grid.add(new Label("Username:"), 0, 1);
+        grid.add(userNameField, 1, 1);
+        grid.add(new Label("Password"), 0, 2);
+        grid.add(passwordField, 1, 2);
+        grid.add(new Label("Firstname"), 0, 3);
+        grid.add(firstNameField, 1, 3);
+        grid.add(new Label("Lastname:"), 0, 4);
+        grid.add(lastNameField, 1, 4);
+        grid.add(new Label("Email:"), 0, 5);
+        grid.add(emailField, 1, 5);
+        grid.add(new Label("ADT:"), 0, 6);
+        grid.add(adtField, 1, 6);
+        
+        // Request focus on the userNameField by default
+        Platform.runLater(() -> userNameField.requestFocus());
+        
+        Text actiontarget = new Text();
+        grid.add(actiontarget, 1, 7);
+        GridPane.setColumnSpan(actiontarget, 2);
+        GridPane.setHalignment(actiontarget, CENTER);
+        
+        // "Ok" button
+        Button okButton = new Button("Ok");
+        okButton.setOnAction(event -> {
+        	try {
+
+        		// If none of the textFields has changed return to ManageUsersPage
+        		if(userNameField.getText().equals(user.getUserName()) &&
+    				passwordField.getText().equals(user.getPassword()) &&
+    				firstNameField.getText().equals(user.getFirstName()) &&
+    				lastNameField.getText().equals(user.getLastName()) &&
+				    emailField.getText().equals(user.getEmail()) &&
+				    adtField.getText().equals(user.getADT())
+				) {
+        			new ManageUsers(primaryStage, admin);
+        		}
+        		
+        		// If a textField is empty show error message
+				else if(userNameField.getText().isEmpty() ||
+						passwordField.getText().isEmpty() ||
+						firstNameField.getText().isEmpty() ||
+						lastNameField.getText().isEmpty() ||
+						emailField.getText().isEmpty() ||
+						adtField.getText().isEmpty()
+				) {
+					actiontarget.setText("There is Empty Field!");
+					actiontarget.setFill(Color.RED);
+				}
+        		
+        		// If ADT has changed show error message
+        		else if(!adtField.getText().equals(user.getADT())) {
+        			actiontarget.setText("ADT can't change!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		// If newUsername already exists show error message
+        		else if(UserUtils.UsernameAlreadyExists(userNameField.getText()) && 
+        				!userNameField.getText().equals(user.getUserName())) {
+        			actiontarget.setText("Username already exists!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		// If newEmail already exists show error message
+        		else if(UserUtils.EmailAlreadyExists(emailField.getText()) &&
+        				!emailField.getText().equals(user.getEmail())) {
+        			actiontarget.setText("Email already exists!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		// Otherwise store updated user
+				else {
+
+					user.setUserName(userNameField.getText());
+					user.setPassword(passwordField.getText());
+					user.setFirstName(firstNameField.getText());
+					user.setLastName(lastNameField.getText());
+					user.setEmail(emailField.getText());
+					user.setADT(adtField.getText());
+
+					user.store();
+					LendingUtils.updateLendingsOfSameUser(user);
+        			new ManageUsers(primaryStage, admin);
+				}
+
+			} catch (ClassNotFoundException | IOException e) {
+				e.printStackTrace();
+			}
+        });
+        
+        // Return to ManageUsersPage when "Cancel" button is clicked
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setOnAction(event -> {
+			try {
+				new ManageUsers(primaryStage, admin);
+			} catch (ClassNotFoundException | IOException e) {
+				e.printStackTrace();
+			}
+		});
+
+        HBox hbBtn = new HBox(10);	        
+        hbBtn.setAlignment(Pos.BOTTOM_CENTER);
+        hbBtn.getChildren().addAll(okButton, cancelButton);
+        grid.add(hbBtn, 1, 9);
+
+        Scene scene = new Scene(grid, 420, 420);
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Edit User" + user.getADT() + "Page");
+        primaryStage.show();
+    }
+}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy element &apos;Login.java&apos; to &apos;medialabFX/src/application&apos;&#x0D;&#x0A;- Original project: &apos;Login&apos;&#x0D;&#x0A;- Destination element: &apos;medialabFX/src/application&apos;&#x0D;&#x0A;- Original element: &apos;login.Login.java&apos;" description="Copy compilation unit" destination="=medialabFX/src&lt;application" element1="/src&lt;login{Login.java" files="0" flags="589830" folders="0" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyResources" stamp="1700818224351" units="1" version="1.0"/>
+</session>

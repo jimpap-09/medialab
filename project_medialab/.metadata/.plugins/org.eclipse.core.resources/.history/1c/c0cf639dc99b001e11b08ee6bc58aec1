@@ -1,0 +1,124 @@
+package application;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+import application.Book.Comment;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+public class LendingUtils {
+
+	// Get Lendings path/file
+	private static Path getPath() {
+		return Paths.get("medialab", "Lendings");
+	}
+	
+	private static File getLendingsFile() {
+		return getPath().toFile();
+	}
+	
+	public static boolean LendingAlreadyExists(Lending lending, ObservableList<Lending> lendings) {
+        return lendings.stream().anyMatch(lnd -> lnd.getLendingID().equals(lending.getLendingID()));
+    }
+	
+	// Get all lendings
+	public static ObservableList<Lending> getLendings() throws FileNotFoundException, IOException, ClassNotFoundException {
+ 		ObservableList<Lending> getLendings = FXCollections.observableArrayList();
+ 		File lendings = getLendingsFile();
+		File[] lendingFiles = lendings.listFiles();
+		for (File lendingFile : lendingFiles)
+			try(ObjectInputStream in = new ObjectInputStream(new FileInputStream(lendingFile))) {
+				getLendings.add((Lending)in.readObject());
+			}
+ 		return getLendings;
+     }
+	
+	// Delete all lendings
+	public static void deleteLendings() throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Lending> lendings = getLendings();
+		for(Lending lending : lendings)
+			lending.delete();
+    }
+	
+	// Update all lendings
+	public static void updateLendings() throws FileNotFoundException, ClassNotFoundException, IOException {
+		ObservableList<Lending> lendings = getLendings();
+		ObservableList<Book> books = BookUtils.getBooks();
+		ObservableList<User> users = UserUtils.getUsers();
+		for(Lending lending : lendings) {
+			User lenUser = lending.getLendingUser();
+			Book lenBook = lending.getLendingBook();
+			for(Book book : books)
+				for(User user : users)
+					if(book.getISBN().equals(lenBook.getISBN()) && user.getADT().equals(lenUser.getADT()))
+						lending.update(user, book);
+		}
+	}
+	
+	// Get all lendings by user
+	public static ObservableList<Lending> getLendingsOfSameUser(User user) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Lending> lendings = getLendings();
+ 		ObservableList<Lending> getLendings = FXCollections.observableArrayList();
+ 		for(Lending lending : lendings)
+ 			if(lending.getLendingUser().getADT().equals(user.getADT()))
+				getLendings.add(lending);
+ 		return getLendings;
+     }
+
+	// Delete lendings by user
+	public static void deleteLendingsOfSameUser(User user) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Lending> lendings = getLendings();
+			for(Lending lending : lendings)
+				if(lending.getLendingUser().getADT().equals(user.getADT())) {
+					Book book = lending.getLendingBook();
+					book.addCopies();
+					List<Comment> comments = new ArrayList<>(book.getComments());
+					Iterator<Comment> iterator = comments.iterator();
+					while (iterator.hasNext()) {
+					    Comment comment = iterator.next();
+					    if (comment.getCommentID().equals(user.getADT())) {
+					        book.rmComment(comment);
+					        iterator.remove();
+					    }
+					}
+					book.store();
+					lending.delete();
+				}
+    }
+	
+	// Delete lendings by lending
+	public static void deleteLending(Lending lending) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Lending> lendings = getLendings();
+			for (Lending lnd : lendings)
+				if(lnd.getLendingID().equals(lending.getLendingID())) {
+					User user = lnd.getLendingUser();
+					user.addAvLending();
+					user.store();
+					Book book = lnd.getLendingBook();
+					book.addCopies();
+					book.store();
+					lending.delete();
+				}
+    }
+	
+	// Delete lendings by book
+	public static void deleteLendingsOfSameBook(Book book) throws FileNotFoundException, IOException, ClassNotFoundException {
+		ObservableList<Lending> lendings = getLendings();
+			for (Lending lending : lendings)
+				if(lending.getLendingBook().getISBN().equals(book.getISBN())) {
+					User user = lending.getLendingUser();
+					user.addAvLending();
+					user.store();
+					lending.delete();
+				}
+    }
+}

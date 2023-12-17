@@ -1,0 +1,217 @@
+package application;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Comparator;
+
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
+public class SearchBooks {
+	
+	@SuppressWarnings("unchecked")
+	SearchBooks(Stage primaryStage, User user) throws FileNotFoundException, ClassNotFoundException, IOException {
+		
+		// Create Title, Author, Year Of Publishing textFields and search button
+		GridPane grid = new GridPane();
+
+		TextField titleField = new TextField();
+		TextField authorField = new TextField();
+		TextField yopField = new TextField();
+		Button searchButton = new Button("Search");
+		Text avLendingsText = new Text();
+		
+		grid.add(new Label("Title:"), 0, 1);
+		grid.add(titleField, 1, 1);
+		grid.add(new Label("Author:"), 0, 2);
+		grid.add(authorField, 1, 2);
+		grid.add(new Label("Year Of Publishing:"), 0, 3);
+		grid.add(yopField, 1, 3);
+		grid.add(searchButton, 0, 4);
+
+		// Set bookTable's data
+		ObservableList<Book> books = BookUtils.getNotLendedBooksOfSameTitleAuthorYop(user, "", "", "");
+		books.sort(Comparator.comparingInt(book -> Integer.parseInt(book.getISBN())));
+		
+		// Create bookTable
+		TableView<Book> bookTableView = new TableView<>(books);		
+		
+		// Create bookTable's columns
+		TableColumn<Book, String> titleColumn = new TableColumn<>("Title");
+		TableColumn<Book, String> authorColumn = new TableColumn<>("Author");
+		TableColumn<Book, String> isbnColumn = new TableColumn<>("ISBN");
+		TableColumn<Book, String> avgRatingColumn = new TableColumn<>("Average Rating");
+		TableColumn<Book, String> readersColumn = new TableColumn<>("Readers");
+		TableColumn<Book, Button> buttonColumn = new TableColumn<>();
+		
+		// Set the value for each cell
+		titleColumn.setCellValueFactory(new BookTableValue("title"));
+		authorColumn.setCellValueFactory(new BookTableValue("author"));
+		isbnColumn.setCellValueFactory(new BookTableValue("isbn"));
+		avgRatingColumn.setCellValueFactory(new BookTableValue("avgRating"));
+		readersColumn.setCellValueFactory(new BookTableValue("readers"));
+		buttonColumn.setCellFactory(param -> new BookTableCell(primaryStage, user, books, avLendingsText));
+		
+		// Set custom cell factories for center alignment
+        setCenterAlignment(titleColumn);
+        setCenterAlignment(authorColumn);
+        setCenterAlignment(isbnColumn);
+        setCenterAlignment(avgRatingColumn);
+        setCenterAlignment(readersColumn);
+		
+		bookTableView.getColumns().addAll(titleColumn, authorColumn, isbnColumn, avgRatingColumn, readersColumn, buttonColumn);
+
+		// Change bookTable's data according to textFields when search button is clicked
+		searchButton.setOnAction(event -> {
+			try {
+				ObservableList<Book> searchResults = BookUtils.getNotLendedBooksOfSameTitleAuthorYop(user, titleField.getText(), authorField.getText(), yopField.getText());
+				searchResults.sort(Comparator.comparingInt(book -> Integer.parseInt(book.getISBN())));
+				bookTableView.setItems(searchResults);
+			} catch (ClassNotFoundException | IOException e) {
+				e.printStackTrace();
+			}
+		});
+		
+		// Return to UserHomePage
+		Button userHomePageButton = new Button("<<");
+		userHomePageButton.setOnAction(event -> new UserHomePage(primaryStage, user));
+		
+		VBox vbox = new VBox(10);
+		vbox.setAlignment(Pos.CENTER);
+		vbox.getChildren().addAll(grid, bookTableView, userHomePageButton, avLendingsText);
+		
+		primaryStage.setTitle("SearchBooksPage-User" + user.getADT());
+		Scene scene = new Scene(vbox);
+		primaryStage.setScene(scene);
+		primaryStage.show();
+	}
+	
+	// Method to set center alignment for a column
+    private <T> void setCenterAlignment(TableColumn<Book, T> column) {
+        column.setCellFactory(tc -> new TableCell<>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setAlignment(Pos.CENTER);
+                } else {
+                    setText(item.toString());
+                    setAlignment(Pos.CENTER);
+                }
+            }
+        });
+    }
+	
+    // Cell's value
+	private class BookTableValue extends PropertyValueFactory<Book, String> {
+		
+	    public BookTableValue(String property) {
+	        super(property);
+	    }
+
+	    @Override
+	    public ObservableValue<String> call(CellDataFeatures<Book, String> param) {
+	        Book book = param.getValue();
+	        // Customize this logic based on your Book class properties
+	        if ("title".equals(getProperty())) {
+	            return new SimpleStringProperty(book.getTitle());
+	        } 
+	        else if ("author".equals(getProperty())) {
+	            return new SimpleStringProperty(book.getAuthor());
+	        } 
+	        else if ("isbn".equals(getProperty())) {
+	            return new SimpleStringProperty(book.getISBN());
+	        }
+	        else if ("avgRating".equals(getProperty())) {
+	            return new SimpleStringProperty(book.getAvgRating());
+	        }
+	        else if ("readers".equals(getProperty())) {
+	            return new SimpleStringProperty(book.getReaders());
+	        }
+	        else {
+	            return super.call(param);
+	        }
+	    }
+	}
+	
+	// Create a cell for "View Info" and "Borrow" buttons
+	private class BookTableCell extends TableCell<Book, Button> {
+		
+		private Stage primaryStage;
+		private User user;
+		private ObservableList<Book> books;
+		private Text avLendingsText;
+
+		BookTableCell(Stage primaryStage, User user, ObservableList<Book> books, Text avLendingsText) {
+			this.primaryStage = primaryStage;
+			this.user = user;
+			this.books = books;
+			this.avLendingsText = avLendingsText;
+		}
+
+		@Override
+        protected void updateItem(Button item, boolean empty) {
+
+            super.updateItem(item, empty);
+            if (empty) {
+                setGraphic(null);
+            } else {
+				Book book = getTableView().getItems().get(getIndex());
+				
+				// Go to ViewInfoButtonPage when "View Info" button is clicked
+				Button viewInfoButton = new Button("View Info");
+				viewInfoButton.setOnAction(event -> new ViewBookInfo(primaryStage, user, book));
+				
+				// When "Borrow" button is clicked...
+				Button borrowButton = new Button("Borrow");
+				borrowButton.setOnAction(event -> {
+				    user.subAvLending();
+			    	user.store();
+				    book.addReader();
+				    book.subCopies();
+				    book.store();
+					books.remove(book);
+					Lending lending = new Lending(user, book);
+					lending.store();
+				});
+
+				boolean noAvLending = user.getAvLending().equals("0");
+				boolean noCopies = book.getCopies().equals("0");
+				boolean isError = noAvLending || noCopies;
+				borrowButton.setDisable(isError);
+
+				// If user has no available lendings show error message
+				if(noAvLending) {
+					avLendingsText.setText("No Available Lendings for User" + user.getADT() + " !");
+					avLendingsText.setFill(Color.RED);
+		    	}
+				
+				// If book has no copies disable the "Borrow" button and change its text
+				if(noCopies)
+					borrowButton.setText("No Copies");
+
+				HBox hbox = new HBox(10);
+				hbox.getChildren().addAll(viewInfoButton, borrowButton);
+				setGraphic(hbox);
+            }
+        }
+	}
+}

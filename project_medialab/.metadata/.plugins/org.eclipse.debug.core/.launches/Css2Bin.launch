@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="org.eclipse.jdt.launching.localJavaApplication">
+    <booleanAttribute key="org.eclipse.debug.core.ATTR_FORCE_SYSTEM_CONSOLE_ENCODING" value="false"/>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS"/>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES"/>
+    <booleanAttribute key="org.eclipse.jdt.launching.ATTR_EXCLUDE_TEST_CODE" value="true"/>
+    <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="com.sun.javafx.css.parser.Css2Bin"/>
+    <stringAttribute key="org.eclipse.jdt.launching.MODULE_NAME" value="javafx.graphics"/>
+    <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="project"/>
+    <stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="javac --module-path &quot;C:\Users\Δημήτρης\Downloads\openjfx-21.0.1_windows-x64_bin-sdk\javafx-sdk-21.0.1\lib&quot; --add-modules javafx.controls,javafx.fxml"/>
+</launchConfiguration>

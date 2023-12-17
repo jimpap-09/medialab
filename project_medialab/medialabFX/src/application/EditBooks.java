@@ -1,0 +1,182 @@
+package application;
+
+import static javafx.geometry.HPos.CENTER;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+import javafx.application.Platform;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
+public class EditBooks {
+
+    EditBooks(Book book, Stage primaryStage, Admin admin) throws FileNotFoundException, ClassNotFoundException, IOException {
+
+    	GridPane grid = new GridPane();
+        grid.setAlignment(Pos.CENTER);
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(25, 25, 25, 25));
+
+        Text scenetitle = new Text("Let's Edit Book" + book.getISBN() + " !");
+        scenetitle.setFont(Font.font("Tahoma", FontWeight.NORMAL, 20));
+        grid.add(scenetitle, 0, 0, 2, 1);
+
+        // Set TextFields for each bookProperty
+        TextField titleField = new TextField(book.getTitle());
+        TextField authorField = new TextField(book.getAuthor());
+        TextField publisherField = new TextField(book.getPublisher());
+        TextField categoryField = new TextField(book.getCategory());
+        TextField isbnField = new TextField(book.getISBN());
+        TextField yopField = new TextField(book.getYop());
+        TextField copiesField = new TextField(book.getCopies());
+
+        // categoryComboBox's data
+        ComboBox<Category> categoryComboBox = new ComboBox<>(CategoryUtils.getCategories());
+        
+        HBox categoryHBox = new HBox(10);
+        categoryHBox.getChildren().addAll(categoryComboBox, categoryField);
+
+        // Add Labels and TextFields
+        grid.add(new Label("Title:"), 0, 1);
+        grid.add(titleField, 1, 1);
+        grid.add(new Label("Author:"), 0, 2);
+        grid.add(authorField, 1, 2);
+        grid.add(new Label("Publisher:"), 0, 3);
+        grid.add(publisherField, 1, 3);
+        grid.add(new Label("Category:"), 0, 4);
+        grid.add(categoryHBox, 1, 4);
+        grid.add(new Label("ISBN:"), 0, 5);
+        grid.add(isbnField, 1, 5);
+        grid.add(new Label("YearOfPublishing:"), 0, 6);
+        grid.add(yopField, 1, 6);
+        grid.add(new Label("Copies:"), 0, 7);
+        grid.add(copiesField, 1, 7);
+        
+        // Request focus on the title field by default
+        Platform.runLater(() -> titleField.requestFocus());
+        
+        Text actiontarget = new Text();
+        grid.add(actiontarget, 1, 9);
+        GridPane.setColumnSpan(actiontarget, 2);
+        GridPane.setHalignment(actiontarget, CENTER);
+        
+        // categoryComboBox
+        categoryComboBox.setOnAction(event -> {
+            String selectedCategory = categoryComboBox.getValue().getTitle();
+            if (selectedCategory != null) {
+                categoryField.setText(selectedCategory);
+            }
+        });
+        
+        // "Ok" button
+        Button okButton = new Button("Ok");
+        okButton.setOnAction(event -> {
+        	try {
+            	Category category = new Category(categoryField.getText());
+            	ObservableList<Category> categories = CategoryUtils.getCategories();
+            	
+            	// If none of the textFields have changed return to ManageBooksPage
+        		if(titleField.getText().equals(book.getTitle()) &&
+        		   authorField.getText().equals(book.getAuthor()) &&
+				   publisherField.getText().equals(book.getPublisher()) &&
+				   categoryField.getText().equals(book.getCategory()) &&
+				   isbnField.getText().equals(book.getISBN()) &&
+				   yopField.getText().equals(book.getYop()) &&
+				   copiesField.getText().equals(book.getCopies())
+				) {
+        			new ManageBooks(primaryStage, admin);
+        		}
+        		
+        		// If any of the textFields are empty show error message
+        		else if(titleField.getText().isEmpty() ||
+						authorField.getText().isEmpty() ||
+						publisherField.getText().isEmpty() ||
+						categoryField.getText().isEmpty() ||
+						isbnField.getText().isEmpty() ||
+						yopField.getText().isEmpty() ||
+						copiesField.getText().isEmpty()
+				) {
+					actiontarget.setText("There is Empty Field!");
+					actiontarget.setFill(Color.RED);
+				}
+        		
+        		// If newISBN already show error message
+        		else if(!isbnField.getText().equals(book.getISBN())) {
+        			actiontarget.setText("ISBN can't change!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		else if(BookUtils.titleAlreadyExists(titleField.getText()) &&
+        			!titleField.getText().equals(book.getTitle())) {
+        			actiontarget.setText("Title already exists!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		// If the new Category has wrong name show error message
+        		else if(!Character.isUpperCase(categoryField.getText().charAt(0))) {
+        			actiontarget.setText("Wrong Category Name!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		// If new Category doesn't already exist show error message
+        		else if(!CategoryUtils.categoryAlreadyExists(category, categories)) {
+        			actiontarget.setText("Category doesn't exist!");
+					actiontarget.setFill(Color.RED);
+        		}
+        		
+        		// Otherwise store updated book
+				else {
+					book.setTitle(titleField.getText());
+					book.setAuthor(authorField.getText());
+					book.setPublisher(publisherField.getText());
+					book.setCategory(categoryField.getText());
+					book.setISBN(isbnField.getText());
+					book.setYop(yopField.getText());
+					book.setCopies(copiesField.getText());
+
+					book.store();
+					LendingUtils.updateLendingsOfSameBook(book);
+        			new ManageBooks(primaryStage, admin);
+				}
+        			
+			} catch (ClassNotFoundException | IOException e) {
+				e.printStackTrace();
+			}
+        });
+        
+        // Return to ManageBooksPage if "Cancel" button is clicked
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setOnAction(event -> {
+			try {
+				new ManageBooks(primaryStage, admin);
+			} catch (ClassNotFoundException | IOException e) {
+				e.printStackTrace();
+			}
+		});
+
+        HBox hbBtn = new HBox(10);	        
+        hbBtn.setAlignment(Pos.BOTTOM_CENTER);
+        hbBtn.getChildren().addAll(okButton, cancelButton);
+        grid.add(hbBtn, 1, 8);
+
+        Scene scene = new Scene(grid, 420, 420);
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("EditBook" + book.getISBN() + "Page");
+        primaryStage.show();
+    }
+}

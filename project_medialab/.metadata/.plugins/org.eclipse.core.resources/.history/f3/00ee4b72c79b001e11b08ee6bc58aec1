@@ -1,0 +1,246 @@
+package application;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+import javafx.application.Platform;
+import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class ManageCategories {
+
+	ManageCategories(Stage primaryStage, Admin admin) throws FileNotFoundException, ClassNotFoundException, IOException {
+		
+	        primaryStage.setTitle("ManageCategoriesPage");
+	        
+	        ObservableList<Category> categories = CategoryUtils.getCategories();
+	        ListView<Category> categoryListView = new ListView<>(categories);
+	        categoryListView.setCellFactory(param -> new CategoryListCell(categories, primaryStage, admin));
+	        
+	        Button insertButton = new Button("Insert New Category");
+	        insertButton.setOnAction(event-> {
+				try {
+					new InsertCategory(categories, primaryStage, admin);
+				} catch (ClassNotFoundException | IOException e) {
+					e.printStackTrace();
+				}
+			});
+	        
+	        Button adminHomePageButton = new Button("<<");
+	        adminHomePageButton.setOnAction(event-> new AdminHomePage(primaryStage, admin));
+	        
+	        HBox hbox = new HBox(10);
+	        hbox.getChildren().addAll(adminHomePageButton, insertButton);
+	        
+	        VBox vbox = new VBox(10);
+	        vbox.getChildren().addAll(categoryListView, hbox);
+	        
+	        Scene scene = new Scene(vbox, 800, 600);
+	        vbox.setAlignment(Pos.CENTER);
+	        primaryStage.setScene(scene);
+	        primaryStage.show();
+	}
+    
+    private class InsertCategory {
+		
+		InsertCategory(ObservableList<Category> categories, Stage primaryStage, Admin admin) throws FileNotFoundException, ClassNotFoundException, IOException {
+			
+            GridPane grid = new GridPane();
+    		Dialog<Category> dialog = new Dialog<Category>();
+            dialog.setTitle("Insert Category");
+            dialog.setHeaderText("Let's create a new Category");
+            dialog.getDialogPane().setContent(grid);
+                    
+            // Create Label and TextField for Title property
+            TextField titleField = new TextField();
+
+            grid.add(new Label("Title:"), 0, 0);
+            grid.add(titleField, 1, 0);
+            
+            // Set the button types
+            ButtonType saveButtonType = new ButtonType("Save", ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+            
+            // Request focus on the title field by default
+            Platform.runLater(() -> { 
+            	titleField.requestFocus();
+            });
+
+            // Check conditions to enable/disable the save button
+            Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+            saveButton.setDisable(true);
+            
+            titleField.textProperty().addListener((observable, oldValue, newValue) -> {
+                boolean isError = newValue.equals("") || // Check if title is empty
+                        !Character.isUpperCase(newValue.charAt(0)) || // Check if first letter is uppercase
+                        CategoryUtils.categoryAlreadyExists(new Category(newValue), categories); // Check if title already exists
+                saveButton.setDisable(isError);
+            });
+            
+            // Convert the result to a category when the save button is clicked
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == saveButtonType) {
+                	
+                	Category category = new Category(titleField.getText());
+                    category.store();
+                    return category;
+                }
+                return null;
+            });
+            
+            dialog.showAndWait();
+            if(!dialog.getResult().equals(null)) new ManageBooks(primaryStage, admin);
+    	}
+	}
+    
+    // Create each cell of the list
+    private class CategoryListCell extends ListCell<Category> {
+    	
+    	private ObservableList<Category> categories;
+    	
+    	CategoryListCell(ObservableList<Category> categories, Stage primaryStage, Admin admin) {
+    		this.categories = categories;
+	    }
+    	
+    	@Override
+    	protected void updateItem(Category item, boolean empty) {
+    		
+    		super.updateItem(item, empty);
+    		
+    		if(empty || item == null) {
+    			setText(null);
+    			setGraphic(null);
+    		} else {
+    			HBox hbox = new HBox(10);
+    			setText(item.getTitle());
+    			
+    			Button editButton = new Button("Edit");
+    			editButton.setOnAction(event -> {
+    				try {
+        				handleEdit(item);
+						categories = CategoryUtils.getCategories();
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+
+    			});
+    			
+    			Button deleteButton = new Button("Delete");
+    			deleteButton.setOnAction(event -> handleDelete(item));
+    			
+    			hbox.getChildren().addAll(editButton, deleteButton);
+    			setGraphic(hbox);
+    		}
+    	}
+
+    	// Edit a category
+		private void handleEdit(Category category) {
+    		
+            GridPane grid = new GridPane();
+    		Dialog<Category> dialog = new Dialog<>();
+            dialog.setTitle("Editing Category" + category.getTitle());
+            dialog.setHeaderText("Edit Category " + category.getTitle());
+            dialog.getDialogPane().setContent(grid);
+
+            // Create text fields for each property
+            TextField titleField = new TextField(category.getTitle());
+
+            grid.add(new Label("Title:"), 0, 0);
+            grid.add(titleField, 1, 0);
+            
+            // Set the button types
+            ButtonType saveButtonType = new ButtonType("Save", ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+            // Request focus on the title field by default
+            Platform.runLater(() -> { 
+            	titleField.requestFocus();
+            });
+
+            Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+            saveButton.setDisable(true);
+            titleField.textProperty().addListener((observable, oldValue, newValue) -> {
+                // Check conditions to enable/disable the save button
+                boolean isError = newValue.equals("") || // Check if title is empty
+                        newValue.equals(category.getTitle()) || // Check if title matches category title
+                        !Character.isUpperCase(newValue.charAt(0)) || // Check if first letter is uppercase
+                        CategoryUtils.categoryAlreadyExists(new Category(newValue), categories); // Check if title already exists
+
+                saveButton.setDisable(isError);
+            });
+            
+            Category oldCategory = category;
+
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == saveButtonType) {
+                	Category newCategory = new Category(titleField.getText());
+                	try {
+                        oldCategory.delete();
+                        newCategory.store();
+                        BookUtils.updateBooksOfSameCategory(oldCategory, newCategory);
+						categories = CategoryUtils.getCategories();
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+                    return newCategory;
+                }
+                return oldCategory;
+            });
+            
+            dialog.showAndWait();
+    	}
+
+		// Delete a category
+	    private void handleDelete(Category category) {
+
+	    	Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Deleting Category" + category.getTitle());
+            dialog.setHeaderText("Delete Category " + category.getTitle());
+            
+            // Set the button types
+            ButtonType yesButtonType = new ButtonType("Yes", ButtonData.OK_DONE);
+            ButtonType noButtonType = new ButtonType("No", ButtonData.NO);
+            
+            dialog.getDialogPane().getButtonTypes().addAll(yesButtonType, noButtonType);
+            
+            Button yesButton = (Button) dialog.getDialogPane().lookupButton(yesButtonType);
+            dialog.getDialogPane().setContentText("Are you sure you want to delete the category: " + category.getTitle() + "?");
+
+            // Request focus on the title field by default
+            Platform.runLater(() -> { 
+            	yesButton.requestFocus();
+            });
+            
+            // Convert the result to a category when the save button is clicked
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == yesButtonType) {
+                	try {
+                    	categories.remove(category);
+                    	category.delete();
+						BookUtils.deleteBooksOfSameCategory(category);
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+                    return yesButtonType;
+                }
+                return noButtonType;
+            });
+            
+            dialog.showAndWait();
+            		
+	    }
+    }
+}

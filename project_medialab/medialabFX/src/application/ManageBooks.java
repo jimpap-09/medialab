@@ -1,0 +1,205 @@
+package application;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Comparator;
+
+import javafx.application.Platform;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
+public class ManageBooks {
+
+	    ManageBooks(Stage primaryStage, Admin admin) throws FileNotFoundException, ClassNotFoundException, IOException {
+
+			GridPane grid = new GridPane();
+			grid.setAlignment(Pos.BASELINE_LEFT);
+	        grid.setHgap(10);
+	        grid.setVgap(10);
+	        grid.setPadding(new Insets(25, 25, 25, 25));
+
+	        // Create Category textField, Search button and text
+			TextField categoryField = new TextField();
+	        Button searchButton = new Button("Search");
+	        Text actionTarget = new Text();
+	        
+	        // categoryComboBox's data
+	        ObservableList<Category> categories = CategoryUtils.getCategories();
+	        
+	        //CategoryCombobox
+			ComboBox<Category> categoryComboBox = new ComboBox<>(categories);
+			categoryComboBox.setOnAction(event -> {
+				String selectedCategory = categoryComboBox.getValue().getTitle();
+				if (selectedCategory != null)
+					categoryField.setText(selectedCategory);
+		    });
+			
+	        HBox categoryHBox = new HBox(10);
+	        categoryHBox.getChildren().addAll(categoryComboBox, categoryField);
+	        
+			grid.add(new Label("Category:"), 0, 0);
+			grid.add(categoryHBox, 1, 0);
+	        grid.add(actionTarget, 3, 0);
+			grid.add(searchButton, 1, 1);
+
+			// bookListView's data
+	        ObservableList<Book> books = BookUtils.getBooks();
+			books.sort(Comparator.comparingInt(book -> Integer.parseInt(book.getISBN())));
+			
+			// bookList
+	        ListView<Book> bookListView = new ListView<>(books);
+	        bookListView.setCellFactory(param -> new BookListCell(books, primaryStage, admin));
+	        
+	        // When search button is clicked set bookList's data or show error message
+	        searchButton.setOnAction(event -> {
+            	Category category = new Category(categoryField.getText());
+            	if(categoryField.getText().isEmpty()) {
+					bookListView.setItems(books);
+					actionTarget.setText("");
+            	}
+            	else if(!Character.isUpperCase(categoryField.getText().charAt(0))) {
+            		actionTarget.setText("Wrong Category Name!");
+            		actionTarget.setFill(Color.RED);
+        		}
+        		else if(!CategoryUtils.categoryAlreadyExists(category, categories)) {
+        			actionTarget.setText("Category doesn't exist!");
+        			actionTarget.setFill(Color.RED);
+        		}
+        		else {
+        			try {
+						bookListView.setItems(BookUtils.getBooksOfSameCategory(category));
+						actionTarget.setText("");
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+        		}
+	        });
+	        
+	        // Go to InsertBooksPage when insert button is clicked
+	        Button insertButton = new Button("Insert Book");
+	        insertButton.setOnAction(event-> {
+				try {
+					new InsertBooks(primaryStage, admin);
+				} catch (ClassNotFoundException | IOException e) {
+					e.printStackTrace();
+				}
+			});
+	        
+	        // Return to AdminHomePage
+	        Button adminHomePageButton = new Button("<<");
+	        adminHomePageButton.setOnAction(event-> new AdminHomePage(primaryStage, admin));
+
+	        HBox hbox = new HBox(10);
+	        hbox.getChildren().addAll(adminHomePageButton, insertButton);
+	        VBox vbox = new VBox(10);
+	        vbox.getChildren().addAll(grid, bookListView, hbox);
+	        vbox.setAlignment(Pos.CENTER);
+	        
+	        Scene scene = new Scene(vbox, 800, 600);
+	        primaryStage.setTitle("ManageBooksPage");
+	        primaryStage.setScene(scene);
+	        primaryStage.show();
+	}
+	   
+	    // Create a cell for "Edit" and "Delete" buttons
+	    private class BookListCell extends ListCell<Book> {
+	    	
+	    	private ObservableList<Book> books;
+	    	private Stage primaryStage;
+	    	private Admin admin;
+	    	
+	    	BookListCell(ObservableList<Book> books, Stage primaryStage, Admin admin) {
+	    		this.books = books;
+	    		this.primaryStage = primaryStage;
+	    		this.admin = admin;
+		    }
+	    	
+	    	@Override
+	    	protected void updateItem(Book item, boolean empty) {
+	    		
+	    		super.updateItem(item, empty);
+	    		
+	    		if(empty || item == null) {
+	    			setText(null);
+	    			setGraphic(null);
+	    		} else {
+	    			HBox hbox = new HBox(10);
+	    			setText(item.getTitle());
+	    			
+	    			// Go to EditBooksPage when "Edit" button is clicked
+	    			Button editButton = new Button("Edit");
+	    			editButton.setOnAction(event -> {
+						try {
+							new EditBooks(item, primaryStage, admin);
+						} catch (ClassNotFoundException | IOException e) {
+							e.printStackTrace();
+						}
+					});
+	    			
+	    			// When "Delete" button is clicked...
+	    			Button deleteButton = new Button("Delete");
+	    			deleteButton.setOnAction(event -> handleDelete(item));
+	    			hbox.getChildren().addAll(editButton, deleteButton);
+	    			setGraphic(hbox);
+	    		}
+	    	}
+	    	
+	    	// Delete function
+		    private void handleDelete(Book book) {
+
+		    	Dialog<ButtonType> dialog = new Dialog<>();
+	            dialog.setTitle("Deleting Book" + book.getISBN());
+	            dialog.setHeaderText("Delete Book " + book.getISBN());
+	            dialog.getDialogPane().setContentText("Are you sure you want to delete the Book" + book.getISBN() + " ?");
+
+	            // Set the button types
+	            ButtonType yesButtonType = new ButtonType("Yes", ButtonData.OK_DONE);
+	            ButtonType noButtonType = new ButtonType("No", ButtonData.NO);
+
+	            dialog.getDialogPane().getButtonTypes().addAll(yesButtonType, noButtonType);
+	            
+	            Button yesButton = (Button) dialog.getDialogPane().lookupButton(yesButtonType);
+
+	            // By default request focus on yes button
+	            Platform.runLater(() -> { 
+	            	yesButton.requestFocus();
+	            });
+	            
+	            dialog.setResultConverter(dialogButton -> {
+
+		            // when the yes button is clicked...
+	                if (dialogButton == yesButtonType) {
+	                	try {
+	                		books.remove(book);
+		                	book.delete();
+							LendingUtils.deleteLendingsOfSameBook(book);
+						} catch (ClassNotFoundException | IOException e) {
+							e.printStackTrace();
+						}
+	                    return yesButtonType;
+	                }
+	                return noButtonType;
+	            });
+	            
+	            dialog.showAndWait();
+		    }
+
+	    }
+}

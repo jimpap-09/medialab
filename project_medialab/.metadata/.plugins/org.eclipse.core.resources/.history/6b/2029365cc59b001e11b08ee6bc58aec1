@@ -1,0 +1,214 @@
+package application;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Book implements Serializable {
+
+	// Private fields/methods
+	private static final long serialVersionUID = 1L;
+	private String title;
+	private String author;
+	private String publisher;
+	private String category;
+	private String isbn;
+	private String yop;
+	private String copies;
+	private String readers;
+	private String avgRating;
+	private List<Rating> ratings;
+	private List<Comment> comments;
+	
+	private String getFileName() {
+		return "Book" + this.getISBN() + ".ser";
+	}
+	private Path getPath() {
+		return Paths.get("medialab", "Books", getFileName());
+	}
+	private File getBookFile() {
+		return getPath().toFile();
+	}
+	private void updateAvgRating() {
+	    int sum = 0;
+	    for (Rating rating : ratings)
+	        sum += Integer.parseInt(rating.getRating());
+	    int readers = Integer.parseInt(getReaders());
+	    if (readers != 0) this.avgRating = Double.toString(sum*1.0 / readers);
+	    else this.avgRating = "0";
+	}
+
+	// Constructor
+	public Book(String title, String author, String publisher, String category, String isbn, String yop, String copies) {
+		setTitle(title);
+		setAuthor(author);
+		setPublisher(publisher);
+		setCategory(category);
+		setISBN(isbn);
+		setYop(yop);
+		setCopies(copies);
+		setAvgRating("0");
+		setReaders("0");
+		this.ratings = new ArrayList<>();
+		this.comments = new ArrayList<>();
+	}
+	
+	// Setters
+	public void setTitle(String title) {
+		this.title = title;
+	}
+	public void setAuthor(String author) {
+		this.author = author;
+	}
+	public void setPublisher(String publisher) {
+		this.publisher = publisher;
+	}
+	public void setCategory(String category) {
+		this.category = category;
+	}
+	public void setISBN(String isbn) {
+		this.isbn = isbn;
+	}
+	public void setYop(String yop) {
+		this.yop = yop;
+	}
+	public void setCopies(String copies) {
+		this.copies = copies;
+	}
+	public void setAvgRating(String avgRating) {
+		this.avgRating = avgRating;
+	}
+	public void setReaders(String readers) {
+		this.readers = readers;
+	}
+	
+	// Update Values
+	public void subCopies() {
+		this.copies = Integer.toString(Integer.parseInt(this.copies) - 1);
+	}
+	public void addCopies() {
+		this.copies = Integer.toString(Integer.parseInt(this.copies) + 1);
+	}
+	public void addReader() {
+		this.readers = Integer.toString(Integer.parseInt(this.readers) + 1);
+	}
+	public void addRating(Rating rating) {
+		this.ratings.add(rating);
+		updateAvgRating();
+	}
+	public void rmRating(Rating rating) {
+		this.ratings.remove(rating);
+	}
+	public void addComment(Comment comment) {
+		this.comments.add(comment);
+	}
+	public void rmComment(Comment comment) {
+		this.comments.remove(comment);
+	}
+	
+	// Getters
+	public String getTitle() {
+		return this.title;
+	}
+	public String getAuthor() {
+		return this.author;
+	}
+	public String getPublisher() {
+		return this.publisher;
+	}
+	public String getCategory() {
+		return this.category;
+	}
+	public String getISBN() {
+		return this.isbn;
+	}
+	public String getYop() {
+		return this.yop;
+	}
+	public String getCopies() {
+		return this.copies;
+	}
+	public String getAvgRating() {
+		return this.avgRating;
+	}
+	public String getReaders() {
+		return this.readers;
+	}
+	public List<Rating> getRatings() {
+		return this.ratings;
+	}
+	public List<Comment> getComments() {
+		return this.comments;
+	}
+	
+	// Rating
+	public class Rating implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+		private String ratingID;
+		private String rating;
+		private User user;
+
+		Rating(User user, String rating) {
+			this.ratingID = user.getADT();
+			this.rating = rating;
+			this.user = user;
+		}
+		public String getRatingID() {
+			return this.ratingID;
+		}
+		public String getRating() {
+			return this.rating;
+		}
+		public User getUser() {
+			return this.user;
+		}
+	}
+	
+	// Comment
+	public class Comment implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+		private String commentID;
+		private String comment;
+		private User user;
+
+		Comment(User user, String comment) {
+			this.commentID = user.getADT();
+			this.comment = comment;
+			this.user = user;
+		}
+		public String getCommentID() {
+			return this.commentID;
+		}
+		public String getComment() {
+			return this.comment;
+		}
+		public User getUser() {
+			return this.user;
+		}
+	}
+	
+	// Store
+	public void store() {
+        File bookFile = getBookFile();
+		try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(bookFile))) {
+				out.writeObject(this);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	// Delete
+	public void delete() {
+        File bookFile = getBookFile();
+        bookFile.delete();
+	}
+	
+}

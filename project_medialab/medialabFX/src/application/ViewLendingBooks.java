@@ -1,0 +1,294 @@
+package application;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Comparator;
+
+import application.Book.Comment;
+import application.Book.Rating;
+import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class ViewLendingBooks {
+	
+	@SuppressWarnings("unchecked")
+	ViewLendingBooks(Stage primaryStage, User user) throws FileNotFoundException, ClassNotFoundException, IOException {
+
+		// Set lendingTable's data
+		ObservableList<Lending> lendings = LendingUtils.getLendingsOfSameUser(user);
+		lendings.sort(Comparator.comparingInt(Lending -> Integer.parseInt(Lending.getLendingBook().getISBN())));
+		
+		// Create lendingTable
+		TableView<Lending> LendingTableView = new TableView<>(lendings);
+		
+		// Create lendingTable's columns
+		TableColumn<Lending, String> titleColumn = new TableColumn<>("Title");
+		TableColumn<Lending, String> isbnColumn = new TableColumn<>("ISBN");
+		TableColumn<Lending, String> lendingDateColumn = new TableColumn<>("Lending Date");
+		TableColumn<Lending, String> finishDateColumn = new TableColumn<>("Finish Date");
+		TableColumn<Lending, Button> buttonColumn = new TableColumn<>();
+		
+		// Set the value for each cell
+		titleColumn.setCellValueFactory(new LendingTableValue("title"));
+		isbnColumn.setCellValueFactory(new LendingTableValue("isbn"));
+		lendingDateColumn.setCellValueFactory(new LendingTableValue("lendingDate"));
+		finishDateColumn.setCellValueFactory(new LendingTableValue("finishDate"));
+		buttonColumn.setCellFactory(param -> new LendingTableCell(primaryStage));
+		
+		// Set custom cell factories for center alignment
+        setCenterAlignment(titleColumn);
+        setCenterAlignment(isbnColumn);
+        setCenterAlignment(lendingDateColumn);
+        setCenterAlignment(finishDateColumn);
+		
+		LendingTableView.getColumns().addAll(titleColumn, isbnColumn, lendingDateColumn, finishDateColumn, buttonColumn);
+		
+		// Return to UserHomePage
+		Button userHomePageButton = new Button("<<");
+		userHomePageButton.setOnAction(event -> new UserHomePage(primaryStage, user));
+
+		VBox vbox = new VBox(10);
+		vbox.getChildren().addAll(LendingTableView, userHomePageButton);
+		
+		primaryStage.setTitle("ViewLendingLendingsPage-User" + user.getADT());
+		Scene scene = new Scene(vbox, 800, 600);
+		primaryStage.setScene(scene);
+		primaryStage.show();
+	}
+	
+	// Method to set center alignment for a column
+    private <T> void setCenterAlignment(TableColumn<Lending, T> column) {
+        column.setCellFactory(tc -> new TableCell<>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setAlignment(Pos.CENTER);
+                } else {
+                    setText(item.toString());
+                    setAlignment(Pos.CENTER);
+                }
+            }
+        });
+    }
+	
+    // Cell's value
+	private class LendingTableValue extends PropertyValueFactory<Lending, String> {
+		
+	    public LendingTableValue(String property) {
+	        super(property);
+	    }
+
+	    @Override
+	    public ObservableValue<String> call(CellDataFeatures<Lending, String> param) {
+	        Lending Lending = param.getValue();
+	        // Customize this logic based on your Lending class properties
+	        if ("title".equals(getProperty())) {
+	            return new SimpleStringProperty(Lending.getLendingBook().getTitle());
+	        } 
+	        else if ("isbn".equals(getProperty())) {
+	            return new SimpleStringProperty(Lending.getLendingBook().getISBN());
+	        }
+	        else if ("lendingDate".equals(getProperty())) {
+	            return new SimpleStringProperty(Lending.getLendingDate());
+	        }
+	        else if ("finishDate".equals(getProperty())) {
+	            return new SimpleStringProperty(Lending.getLendingFinishDate());
+	        }
+	        else {
+	            return super.call(param);
+	        }
+	    }
+	}
+	
+	// Create a cell for "Rate" and "Comment" buttons
+	private class LendingTableCell extends TableCell<Lending, Button> {
+
+		private Stage primaryStage;
+		
+		LendingTableCell(Stage primaryStage) {
+			this.primaryStage = primaryStage;
+		}
+
+		@Override
+        protected void updateItem(Button item, boolean empty) {
+
+            super.updateItem(item, empty);
+            if (empty) {
+                setGraphic(null);
+            } else {
+
+				Lending lending = getTableView().getItems().get(getIndex());
+				User user = lending.getLendingUser();
+				Book book = lending.getLendingBook();
+
+				// When "Rate" button is clicked
+				Button rateButton = new Button("Rate");
+				rateButton.setOnAction(event -> {
+					try {
+						RateBook(user, book);
+						new ViewLendingBooks(primaryStage, user);
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+				});
+				
+				// "Comment" button is clicked
+				Button commentButton = new Button("Comment");
+				commentButton.setOnAction(event ->  {
+					try {
+						CommentBook(user, book);
+						new ViewLendingBooks(primaryStage, user);
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+				});
+
+				HBox hbox = new HBox(10);
+				hbox.getChildren().addAll(rateButton, commentButton);
+				setGraphic(hbox);
+            }
+        }
+		
+		// Rate function
+		private void RateBook(User user, Book book) {
+        	
+			Dialog<ButtonType> dialog = new Dialog<>();
+			dialog.setTitle("Rate Book" + book.getISBN() + " !");
+            dialog.setHeaderText("Add your rating for the Book" + book.getISBN() + " !");
+
+			GridPane grid = new GridPane();
+			TextField ratingField = new TextField();
+			grid.setAlignment(Pos.CENTER);
+	        grid.setHgap(10);
+	        grid.setVgap(10);
+	        grid.setPadding(new Insets(25, 25, 25, 25));
+			grid.add(new Label("Rating:"), 0, 1);
+			grid.add(ratingField, 1, 1);
+			
+            ButtonType saveButtonType = new ButtonType("Save", ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+            dialog.getDialogPane().setContent(grid);
+            
+            // Request focus on the title field by default
+            Platform.runLater(() -> { 
+            	ratingField.requestFocus();
+            });
+
+            Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+            saveButton.setDisable(true);
+            ratingField.textProperty().addListener((observable, oldValue, newValue) -> {
+            	
+                // Check conditions to enable/disable the save button
+            	boolean isError;
+            	try {
+					int rating = Integer.parseInt(newValue);
+					isError = (rating < 1) || (rating > 5);
+				} catch (NumberFormatException e) {
+					isError = true;
+				}
+                saveButton.setDisable(isError);
+            });
+            
+            dialog.setResultConverter(dialogButton -> {
+            	
+	    		if (dialogButton == saveButtonType) {
+	    			try {
+		            	Rating rating = BookUtils.getBookRatingByUser(book, user);
+		            	if(rating != null)
+		            		book.rmRating(rating);
+		            	String ratingValue = ratingField.getText();
+		            	Rating newRating = book.new Rating(user, ratingValue);
+		            	book.addRating(newRating);
+		            	book.store();
+		            	LendingUtils.updateLendingsOfSameBook(book);
+	    			} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+	            	return saveButtonType;
+	            }
+	            else
+	            	return ButtonType.CANCEL;
+				
+            });
+
+            dialog.showAndWait();
+		}
+		
+		// Comment function
+		private void CommentBook(User user, Book book) {
+			Dialog<ButtonType> dialog = new Dialog<>();
+			dialog.setTitle("Comment Book" + book.getISBN() + " !");
+            dialog.setHeaderText("Add your comment for the Book" + book.getISBN() + " !");
+
+			GridPane grid = new GridPane();
+			TextField commentField = new TextField();
+			grid.setAlignment(Pos.CENTER);
+	        grid.setHgap(10);
+	        grid.setVgap(10);
+	        grid.setPadding(new Insets(25, 25, 25, 25));
+			grid.add(new Label("Rating:"), 0, 1);
+			grid.add(commentField, 1, 1);
+			
+            ButtonType saveButtonType = new ButtonType("Save", ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+            dialog.getDialogPane().setContent(grid);
+            
+            // Request focus on the title field by default
+            Platform.runLater(() -> { 
+            	commentField.requestFocus();
+            });
+
+            Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+            saveButton.setDisable(true);
+            commentField.textProperty().addListener((observable, oldValue, newValue) -> {
+                // Check conditions to enable/disable the save button
+            	boolean notEmpty = !newValue.equals("");
+            	boolean rightLength = (newValue.length() > 0) && (newValue.length() < 25);
+            	boolean validComment = notEmpty && rightLength;
+                saveButton.setDisable(!validComment);
+            });
+            
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == saveButtonType) {
+	            	try {
+	            		Comment comment = BookUtils.getBookCommentByUser(book, user);
+	                	if(comment != null)
+	                		book.rmComment(comment);
+	                	book.addComment(book.new Comment(user, commentField.getText()));
+	                	book.store();
+						LendingUtils.updateLendingsOfSameBook(book);
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+                	return saveButtonType;
+                }
+                else
+                	return ButtonType.CANCEL;
+            });
+            
+            dialog.showAndWait();
+		}
+	}
+}

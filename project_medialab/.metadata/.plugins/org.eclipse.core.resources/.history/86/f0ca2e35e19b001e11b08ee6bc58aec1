@@ -1,0 +1,153 @@
+package application;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+public class User implements Serializable {
+
+	// Private fields/methods
+	private static final long serialVersionUID = -6919298757563298622L;
+	private String id;
+	private String username;
+	private String password;
+	private String firstname;
+	private String lastname;
+	private String email;
+	private String adt;
+	private String avlending;
+	
+	private String getFileName() {
+		return "User" + this.getID() + ".ser";
+	}
+	
+	private Path getPath() {
+		return Paths.get("medialab", "Users", getFileName());
+	}
+	
+	private File getUserFile() {
+		return getPath().toFile();
+	}
+	
+	// Constructor
+	User (
+			String id,
+			String username, 
+			String password, 
+			String firstname, 
+			String lastname, 
+			String email, 
+			String adt
+	) 
+	{
+		setID(id);
+		setUserName(username);
+		setPassword(password);
+		setFirstName(firstname);
+		setLastName(lastname);
+		setEmail(email);
+		setADT(adt);
+		setAvLending("2");
+	}
+	
+	// Setters
+	public void setID(String id) {
+		this.id = id;
+	}
+	
+	public void setUserName(String username) {
+		this.username = username;
+	}
+	
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	
+	public void setFirstName(String firstname) {
+		this.firstname = firstname;
+	}
+	
+	public void setLastName(String lastname) {
+		this.lastname = lastname;
+	}
+	
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	
+	public void setADT(String adt) {
+		this.adt = adt;
+	}
+	
+	public void setAvLending(String avlending) {
+		this.avlending = avlending;
+	}
+	
+	// Update Values
+	public void addAvLending() {
+		this.avlending = Integer.toString(Integer.parseInt(this.avlending) + 1);
+	}
+	
+	public void subAvLending() {
+		this.avlending = Integer.toString(Integer.parseInt(this.avlending) - 1);
+	}
+
+
+	// Getters
+	public String getID() {
+		return this.id;
+	}
+	
+	public String getUserName() {
+		return this.username;
+	}
+	
+	public String getPassword() {
+		return this.password;
+	}
+	
+	public String getFirstName() {
+		return this.firstname;
+	}
+	
+	public String getLastName() {
+		return this.lastname;
+	}
+	
+	public String getEmail() {
+		return this.email;
+	}
+	
+	public String getADT() {
+		return this.adt;
+	}
+	
+	public String getAvLending() {
+		return this.avlending;
+	}
+	
+	// canBorrow
+	public boolean canBorrow() {
+		return !avlending.equals("0");
+	}
+	
+	// Store
+	public void store() {
+        File userFile = getUserFile();
+		try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(userFile))) {
+				out.writeObject(this);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	// Delete
+	public void delete() {
+        File userFile = getUserFile();
+        userFile.delete();
+	}
+}
